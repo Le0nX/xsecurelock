@@ -24,6 +24,7 @@ limitations under the License.
 #include <X11/X.h>       // for CopyFromParent, etc
 #include <X11/Xlib.h>    // for XEvent, etc
 #include <X11/Xutil.h>   // for XLookupString
+#include <X11/XKBlib.h>  // for keyboard, XkbUseCoreKbd
 #include <locale.h>      // for NULL, setlocale, LC_CTYPE
 #include <signal.h>      // for sigaction, sigemptyset, etc
 #include <stdio.h>       // for fprintf, stderr
@@ -326,6 +327,63 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Could not connect to $DISPLAY.\n");
     return 1;
   }
+
+  //auto en_layout switcher
+  int _deviceId = XkbUseCoreKbd;
+  int i = 0;
+  int _groupCount = 0;
+
+  XkbDescRec* kbdDescPtr = XkbAllocKeyboard();
+  XkbStateRec state;
+
+  if (kbdDescPtr == NULL) {
+  printf("%s\n", "Failed to get keyboard description."); 
+  return False;
+  }
+
+  kbdDescPtr->dpy = display;
+  if (_deviceId != XkbUseCoreKbd) {
+      kbdDescPtr->device_spec = _deviceId;
+  }
+
+  XkbGetControls(display, XkbAllControlsMask, kbdDescPtr);
+  XkbGetNames(display, XkbSymbolsNameMask, kbdDescPtr);
+  XkbGetNames(display, XkbGroupNamesMask, kbdDescPtr);
+  XkbGetState (display, XkbUseCoreKbd, &state);
+  int startGroup = state.group;                        
+             /* count grou */
+
+  Atom* groupSource = kbdDescPtr->names->groups;
+  if (kbdDescPtr->ctrls != NULL) {
+        _groupCount = kbdDescPtr->ctrls->num_groups;
+    } else {
+        _groupCount = 0;
+        while (_groupCount < XkbNumKbdGroups &&
+              groupSource[_groupCount] != 0) {
+          _groupCount++;
+        }
+    }
+
+            /* get names of groups */
+  Atom* tmpGroupSource = kbdDescPtr->names->groups;
+  Atom curGroupAtom;
+    for (i = 0; i < _groupCount; i++) {
+      if ((curGroupAtom = tmpGroupSource[i]) != None) {
+          char* groupNameC = XGetAtomName(display, curGroupAtom);
+              if (groupNameC == NULL) {
+                continue;
+              }
+              else {  
+                  
+                char *temp = "English";
+                if (strncmp(temp, groupNameC, 7) == 0){
+                    XkbLockGroup(display, _deviceId, i);
+                    XFree(groupNameC);
+              }
+          }
+      } 
+  }
+
 
   // Who's the root?
   Window root_window = DefaultRootWindow(display);
@@ -666,7 +724,8 @@ int main(int argc, char **argv) {
   }
 
 done:
-  // Free our resources, and exit.
+  // Free our resources, return previous layout and exit.
+  XkbLockGroup(display, _deviceId, startGroup); 
   XDestroyWindow(display, saver_window);
   XDestroyWindow(display, grab_window);
   XFreeCursor(display, coverattrs.cursor);
