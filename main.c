@@ -37,9 +37,6 @@ limitations under the License.
 #ifdef HAVE_SCRNSAVER
 #include <X11/extensions/scrnsaver.h>
 #endif
-#ifdef HAVE_COMPOSITE
-#include <X11/extensions/Xcomposite.h>
-#endif
 #ifdef HAVE_XF86MISC
 #include <X11/extensions/xf86misc.h>
 #endif
@@ -352,25 +349,6 @@ int main(int argc, char **argv) {
       XCreatePixmapCursor(display, bg, bg, &Black, &Black, 0, 0);
 
   Window parent_window = root_window;
-
-#ifdef HAVE_COMPOSITE
-  int composite_event_base, composite_error_base,
-      composite_major_version = 0, composite_minor_version = 0;
-  int have_composite =
-      XCompositeQueryExtension(display, &composite_event_base,
-                               &composite_error_base) &&
-      // Require at least XComposite 0.3.
-      XCompositeQueryVersion(display, &composite_major_version,
-                             &composite_minor_version) &&
-      (composite_major_version >= 1 || composite_minor_version >= 3);
-  Window composite_window;
-  if (have_composite) {
-    composite_window = XCompositeGetOverlayWindow(display, root_window);
-    parent_window = composite_window;
-  } else {
-    fprintf(stderr, "XComposite extension not detected.\n");
-  }
-#endif
 
   // Create the two windows.
   // grab_window is the outer window which we grab input on.
@@ -691,11 +669,6 @@ done:
   // Free our resources, and exit.
   XDestroyWindow(display, saver_window);
   XDestroyWindow(display, grab_window);
-#ifdef HAVE_COMPOSITE
-  if (have_composite) {
-    XCompositeReleaseOverlayWindow(display, composite_window);
-  }
-#endif
   XFreeCursor(display, coverattrs.cursor);
   XFreePixmap(display, bg);
 
