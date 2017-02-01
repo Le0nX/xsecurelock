@@ -110,7 +110,9 @@ int WatchAuthChild(const char *executable, int force_auth, const char *stdinbuf,
         // The auth child has just been started. Do not send any keystrokes to
         // it immediately, as users prefer pressing any key in the screen saver
         // to simply start the auth child, not begin password input!
-        stdinbuf = NULL;
+        if (stdinbuf != NULL && stdinbuf[0]==27){
+          stdinbuf = NULL;
+        }
       }
     }
   }
